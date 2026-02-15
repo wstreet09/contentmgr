@@ -2,26 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+
+
+@layer base {
+  :root {
+    --background: 260 20% 98%;
+    --foreground: 260 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 260 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 10% 10%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 262 40% 95%;
+    --secondary-foreground: 262 60% 40%;
+    --muted: 260 15% 95%;
+    --muted-foreground: 260 5% 45%;
+    --accent: 262 40% 95%;
+    --accent-foreground: 262 83% 58%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 15% 90%;
+    --input: 260 15% 90%;
+    --ring: 262 83% 58%;
+    --chart-1: 262 83% 58%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 220 70% 50%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 260 15% 7%;
+    --foreground: 260 10% 95%;
+    --card: 260 15% 10%;
+    --card-foreground: 260 10% 95%;
+    --popover: 260 15% 10%;
+    --popover-foreground: 260 10% 95%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 262 30% 18%;
+    --secondary-foreground: 262 40% 80%;
+    --muted: 260 15% 15%;
+    --muted-foreground: 260 10% 60%;
+    --accent: 262 30% 18%;
+    --accent-foreground: 262 60% 75%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 260 15% 18%;
+    --input: 260 15% 18%;
+    --ring: 262 83% 58%;
+    --chart-1: 262 83% 58%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 220 70% 50%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
 }

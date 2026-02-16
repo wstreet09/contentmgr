@@ -2,7 +2,7 @@
 
 import { signIn } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { AuthError } from "next-auth"
+import { isRedirectError } from "next/dist/client/components/redirect"
 
 export async function adminLoginAction(formData: FormData) {
   const email = formData.get("email") as string
@@ -24,9 +24,9 @@ export async function adminLoginAction(formData: FormData) {
       redirectTo: "/admin",
     })
   } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Invalid credentials" }
+    if (isRedirectError(error)) {
+      throw error
     }
-    throw error
+    return { error: "Invalid credentials" }
   }
 }

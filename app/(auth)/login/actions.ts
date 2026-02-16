@@ -1,7 +1,7 @@
 "use server"
 
 import { signIn } from "@/lib/auth"
-import { AuthError } from "next-auth"
+import { isRedirectError } from "next/dist/client/components/redirect"
 
 export async function loginAction(formData: FormData) {
   try {
@@ -11,9 +11,11 @@ export async function loginAction(formData: FormData) {
       redirectTo: "/article",
     })
   } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Invalid email or password" }
+    // Next.js redirect throws a special error — re-throw it so the redirect works
+    if (isRedirectError(error)) {
+      throw error
     }
-    throw error
+    // Any other error (including AuthError) means login failed
+    return { error: "Invalid email or password" }
   }
 }

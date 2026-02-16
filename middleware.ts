@@ -33,7 +33,12 @@ function checkRateLimit(key: string, limit: { max: number; windowMs: number }): 
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET })
+  const secureCookie = req.nextUrl.protocol === "https:"
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+    secureCookie,
+  })
 
   // Rate-limit API routes
   if (pathname.startsWith("/api/")) {

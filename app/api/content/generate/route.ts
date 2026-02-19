@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { waitUntil } from "@vercel/functions"
 
-// Allow up to 60s for background processing on Vercel
-export const maxDuration = 60
+// Allow up to 300s for background processing on Vercel (Pro plan)
+export const maxDuration = 300
 import { prisma } from "@/lib/prisma"
 import { decrypt } from "@/lib/crypto"
-import { createAdapter, LLMProvider } from "@/lib/llm/adapter"
+import { createAdapter, LLMProvider, LLMAdapter } from "@/lib/llm/adapter"
 import { buildContentPrompt } from "@/lib/llm/prompts"
 import { createGoogleDoc } from "@/lib/google-drive"
 
@@ -138,89 +138,14 @@ async function processItemsInBackground(opts: {
 
   const adapter = await createAdapter(opts.provider, opts.apiKey, opts.model)
 
-  for (const item of items) {
-    await prisma.contentItem.update({
-      where: { id: item.id },
-      data: { status: "GENERATING" },
-    })
-
-    try {
-      const prompt = buildContentPrompt({
-        title: item.title,
-        contentType: item.contentType,
-        serviceArea: item.serviceArea || undefined,
-        targetAudience: item.targetAudience || undefined,
-        geolocation: item.geolocation || undefined,
-        targetKeywords: item.targetKeywords || undefined,
-        includeCta: item.includeCta,
-        businessName: opts.businessName,
-        businessPhone: opts.businessPhone || undefined,
-        contactPageUrl: opts.contactUrl || undefined,
-        wordCount: opts.wordCount,
-        templatePrompt: opts.templatePrompt,
-        exampleContent: opts.exampleContent,
-        customPromptInstruction: opts.customPromptInstruction,
-      })
-
-      const raw = await adapter.generate({ prompt })
-      const result = {
-        ...raw,
-        content: raw.content.replace(/^```[a-z]*\n?/i, "").replace(/\n?```\s*$/i, "").trim(),
-      }
-
-      if (!result.content) {
-        throw new Error("LLM returned empty content. Try a different model.")
-      }
-
-      let googleDocId: string | undefined
-      let googleDocUrl: string | undefined
-      try {
-        if (opts.driveFolderId) {
-          const doc = await createGoogleDoc(
-            opts.subAccountId,
-            item.title,
-            result.content,
-            opts.driveFolderId
-          )
-          googleDocId = doc.docId
-          googleDocUrl = doc.docUrl
-        }
-      } catch (driveErr) {
-        console.error("Google Drive upload error:", driveErr)
-      }
-
-      await prisma.contentItem.update({
-        where: { id: item.id },
-        data: {
-          generatedContent: result.content,
-          status: "COMPLETED",
-          ...(googleDocId && { googleDocId }),
-          ...(googleDocUrl && { googleDocUrl }),
-        },
-      })
-
-      await prisma.contentBatch.update({
-        where: { id: opts.batchId },
-        data: { completedItems: { increment: 1 } },
-      })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error"
-      await prisma.contentItem.update({
-        where: { id: item.id },
-        data: {
-          status: "FAILED",
-          errorMessage,
-          retryCount: { increment: 1 },
-        },
-      })
-      await prisma.contentBatch.update({
-        where: { id: opts.batchId },
-        data: { failedItems: { increment: 1 } },
-      })
-    }
+  // Process items in parallel (3 at a time) to stay within Vercel time limits
+  const CONCURRENCY = 3
+  for (let i = 0; i < items.length; i += CONCURRENCY) {
+    const chunk = items.slice(i, i + CONCURRENCY)
+    await Promise.allSettled(chunk.map((item) => processOneItem(item, adapter, opts)))
   }
 
-  // Mark batch as completed
+  // Mark batch as completed after all items processed
   const finalBatch = await prisma.contentBatch.findUnique({
     where: { id: opts.batchId },
     select: { failedItems: true, totalItems: true },
@@ -233,4 +158,90 @@ async function processItemsInBackground(opts: {
       completedAt: new Date(),
     },
   })
+}
+
+async function processOneItem(
+  item: { id: string; title: string; contentType: string; serviceArea: string | null; targetAudience: string | null; geolocation: string | null; targetKeywords: string | null; includeCta: boolean },
+  adapter: LLMAdapter,
+  opts: { batchId: string; businessName: string; businessPhone: string | null; contactUrl: string | null; driveFolderId: string | null; subAccountId: string; wordCount?: number; templatePrompt?: string; exampleContent?: string; customPromptInstruction?: string }
+) {
+  await prisma.contentItem.update({
+    where: { id: item.id },
+    data: { status: "GENERATING" },
+  })
+
+  try {
+    const prompt = buildContentPrompt({
+      title: item.title,
+      contentType: item.contentType,
+      serviceArea: item.serviceArea || undefined,
+      targetAudience: item.targetAudience || undefined,
+      geolocation: item.geolocation || undefined,
+      targetKeywords: item.targetKeywords || undefined,
+      includeCta: item.includeCta,
+      businessName: opts.businessName,
+      businessPhone: opts.businessPhone || undefined,
+      contactPageUrl: opts.contactUrl || undefined,
+      wordCount: opts.wordCount,
+      templatePrompt: opts.templatePrompt,
+      exampleContent: opts.exampleContent,
+      customPromptInstruction: opts.customPromptInstruction,
+    })
+
+    const raw = await adapter.generate({ prompt })
+    const result = {
+      ...raw,
+      content: raw.content.replace(/^```[a-z]*\n?/i, "").replace(/\n?```\s*$/i, "").trim(),
+    }
+
+    if (!result.content) {
+      throw new Error("LLM returned empty content. Try a different model.")
+    }
+
+    let googleDocId: string | undefined
+    let googleDocUrl: string | undefined
+    try {
+      if (opts.driveFolderId) {
+        const doc = await createGoogleDoc(
+          opts.subAccountId,
+          item.title,
+          result.content,
+          opts.driveFolderId
+        )
+        googleDocId = doc.docId
+        googleDocUrl = doc.docUrl
+      }
+    } catch (driveErr) {
+      console.error("Google Drive upload error:", driveErr)
+    }
+
+    await prisma.contentItem.update({
+      where: { id: item.id },
+      data: {
+        generatedContent: result.content,
+        status: "COMPLETED",
+        ...(googleDocId && { googleDocId }),
+        ...(googleDocUrl && { googleDocUrl }),
+      },
+    })
+
+    await prisma.contentBatch.update({
+      where: { id: opts.batchId },
+      data: { completedItems: { increment: 1 } },
+    })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    await prisma.contentItem.update({
+      where: { id: item.id },
+      data: {
+        status: "FAILED",
+        errorMessage,
+        retryCount: { increment: 1 },
+      },
+    })
+    await prisma.contentBatch.update({
+      where: { id: opts.batchId },
+      data: { failedItems: { increment: 1 } },
+    })
+  }
 }

@@ -45,7 +45,7 @@ export const generateContentBatch = inngest.createFunction(
         where: { id: batchId },
         include: {
           items: { where: { status: "QUEUED" } },
-          subAccount: { select: { name: true, phone: true, url: true, id: true, googleDriveFolderId: true, googleDriveTokens: true } },
+          subAccount: { select: { name: true, phone: true, contactUrl: true, id: true, googleDriveFolderId: true, googleDriveTokens: true } },
         },
       })
       if (!batch) throw new Error("Batch not found")
@@ -53,7 +53,7 @@ export const generateContentBatch = inngest.createFunction(
         items: batch.items,
         businessName: batch.subAccount.name,
         businessPhone: batch.subAccount.phone,
-        contactPageUrl: batch.subAccount.url ? `${batch.subAccount.url.replace(/\/$/, "")}/contact` : null,
+        contactPageUrl: batch.subAccount.contactUrl,
         subAccountId: batch.subAccount.id,
         driveFolderId: batch.subAccount.googleDriveFolderId,
         hasDrive: !!batch.subAccount.googleDriveTokens,

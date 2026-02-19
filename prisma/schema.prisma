@@ -162,6 +162,7 @@ model SubAccount {
   phone               String?
   email               String?
   url                 String?
+  contactUrl          String?
   companyType         String?
   isPrimary           Boolean  @default(false)
   googleDriveFolderId String?

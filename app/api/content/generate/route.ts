@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       name: true,
       phone: true,
       url: true,
+      contactUrl: true,
       googleDriveFolderId: true,
       googleDriveTokens: true,
       project: { select: { teamId: true } },
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     batchId, itemIds, provider, apiKey, model,
     businessName: subAccount.name,
     businessPhone: subAccount.phone,
-    businessUrl: subAccount.url,
+    contactUrl: subAccount.contactUrl,
     driveFolderId, subAccountId,
     wordCount, templatePrompt, exampleContent, customPromptInstruction,
   }).catch(console.error)
@@ -122,7 +123,7 @@ async function processItemsInBackground(opts: {
   model?: string
   businessName: string
   businessPhone: string | null
-  businessUrl: string | null
+  contactUrl: string | null
   driveFolderId: string | null
   subAccountId: string
   wordCount?: number
@@ -153,7 +154,7 @@ async function processItemsInBackground(opts: {
         includeCta: item.includeCta,
         businessName: opts.businessName,
         businessPhone: opts.businessPhone || undefined,
-        contactPageUrl: opts.businessUrl ? `${opts.businessUrl.replace(/\/$/, "")}/contact` : undefined,
+        contactPageUrl: opts.contactUrl || undefined,
         wordCount: opts.wordCount,
         templatePrompt: opts.templatePrompt,
         exampleContent: opts.exampleContent,

@@ -7,6 +7,7 @@ import { ContentPageClient } from "@/components/content/content-page-client"
 import { ExamplesTab } from "@/components/content/examples-tab"
 import { PromptLibraryTab } from "@/components/content/prompt-library-tab"
 import { DriveSettings } from "@/components/sub-accounts/drive-settings"
+import { LocationSettings } from "@/components/sub-accounts/location-settings"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default async function SubAccountPage({
@@ -75,7 +76,8 @@ export default async function SubAccountPage({
         <TabsContent value="prompts">
           <PromptLibraryTab subAccountId={params.subAccountId} />
         </TabsContent>
-        <TabsContent value="settings">
+        <TabsContent value="settings" className="space-y-6">
+          <LocationSettings subAccountId={params.subAccountId} />
           <DriveSettings
             subAccountId={params.subAccountId}
             hasTokens={!!subAccount.googleDriveTokens}

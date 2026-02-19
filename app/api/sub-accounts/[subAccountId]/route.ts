@@ -55,7 +55,7 @@ export async function PUT(
   }
 
   const body = await req.json()
-  const { name, address, city, state, zip, phone, email, url, companyType, isPrimary, googleDriveFolderId } = body
+  const { name, address, city, state, zip, phone, email, url, contactUrl, companyType, isPrimary, googleDriveFolderId } = body
 
   const subAccount = await prisma.subAccount.update({
     where: { id: params.subAccountId },
@@ -68,6 +68,7 @@ export async function PUT(
       ...(phone !== undefined && { phone: phone?.trim() || null }),
       ...(email !== undefined && { email: email?.trim() || null }),
       ...(url !== undefined && { url: url?.trim() || null }),
+      ...(contactUrl !== undefined && { contactUrl: contactUrl?.trim() || null }),
       ...(companyType !== undefined && { companyType: companyType?.trim() || null }),
       ...(isPrimary !== undefined && { isPrimary }),
       ...(googleDriveFolderId !== undefined && { googleDriveFolderId: googleDriveFolderId || null }),

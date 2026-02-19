@@ -40,18 +40,20 @@ export const generateContentBatch = inngest.createFunction(
     })
 
     // Get batch items and sub-account info
-    const { items, businessName, subAccountId, driveFolderId } = await step.run("get-batch-data", async () => {
+    const { items, businessName, businessPhone, contactPageUrl, subAccountId, driveFolderId } = await step.run("get-batch-data", async () => {
       const batch = await prisma.contentBatch.findUnique({
         where: { id: batchId },
         include: {
           items: { where: { status: "QUEUED" } },
-          subAccount: { select: { name: true, id: true, googleDriveFolderId: true, googleDriveTokens: true } },
+          subAccount: { select: { name: true, phone: true, url: true, id: true, googleDriveFolderId: true, googleDriveTokens: true } },
         },
       })
       if (!batch) throw new Error("Batch not found")
       return {
         items: batch.items,
         businessName: batch.subAccount.name,
+        businessPhone: batch.subAccount.phone,
+        contactPageUrl: batch.subAccount.url ? `${batch.subAccount.url.replace(/\/$/, "")}/contact` : null,
         subAccountId: batch.subAccount.id,
         driveFolderId: batch.subAccount.googleDriveFolderId,
         hasDrive: !!batch.subAccount.googleDriveTokens,
@@ -78,6 +80,8 @@ export const generateContentBatch = inngest.createFunction(
             targetKeywords: item.targetKeywords || undefined,
             includeCta: item.includeCta,
             businessName,
+            businessPhone: businessPhone || undefined,
+            contactPageUrl: contactPageUrl || undefined,
           })
 
           const result = await adapter.generate({ prompt })

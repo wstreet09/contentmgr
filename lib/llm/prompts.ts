@@ -7,6 +7,8 @@ interface ContentPromptInput {
   targetKeywords?: string
   includeCta: boolean
   businessName?: string
+  businessPhone?: string
+  contactPageUrl?: string
   wordCount?: number
   templatePrompt?: string
   exampleContent?: string
@@ -72,6 +74,7 @@ export function buildContentPrompt(input: ContentPromptInput): string {
 
   if (input.geolocation) {
     parts.push(`This content targets the geographic area: ${input.geolocation}. Include local references where appropriate.`)
+    parts.push(`IMPORTANT — Legal accuracy: Any references to laws, regulations, statutes, ordinances, or legal requirements MUST be specific to ${input.geolocation} only. Do NOT reference or cite laws from other states or jurisdictions. Verify that all legal information applies to this specific location.`)
   }
 
   if (input.targetKeywords) {
@@ -97,12 +100,19 @@ export function buildContentPrompt(input: ContentPromptInput): string {
     parts.push(`- ${template.instruction}`)
   }
   parts.push("- Use proper heading hierarchy (H1, H2, H3)")
-  parts.push("- Include an engaging introduction and conclusion")
+  parts.push("- Include an engaging introduction and conclusion. NEVER use the word \"Conclusion\" as a heading — use a more creative, content-specific closing heading instead")
   parts.push("- Optimize for search engines while keeping content reader-friendly")
   parts.push(`- Content should be approximately ${targetWords} words`)
 
   if (input.includeCta) {
-    parts.push("- Include a compelling call-to-action section at the end, wrapped in its own paragraph tags with clear separation from surrounding content")
+    let ctaInstruction = "- Include a compelling call-to-action section at the end, wrapped in its own paragraph tags with clear separation from surrounding content"
+    if (input.businessPhone) {
+      ctaInstruction += `. Include the phone number ${input.businessPhone} as a clickable tel: link`
+    }
+    if (input.contactPageUrl) {
+      ctaInstruction += `. Include a link to the contact page: ${input.contactPageUrl}`
+    }
+    parts.push(ctaInstruction)
   }
 
   parts.push("- After all article content (including the CTA if present), add a horizontal rule (<hr>) followed by the meta description (150-160 characters) that leads with the primary keyword. Format it as: <hr><p><strong>Meta Description:</strong> [description text]</p>")

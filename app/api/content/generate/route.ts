@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+
+// Allow up to 60s for background processing on Vercel
+export const maxDuration = 60
 import { prisma } from "@/lib/prisma"
 import { decrypt } from "@/lib/crypto"
 import { createAdapter, LLMProvider } from "@/lib/llm/adapter"
@@ -55,6 +58,8 @@ export async function POST(req: NextRequest) {
     where: { id: subAccountId },
     select: {
       name: true,
+      phone: true,
+      url: true,
       googleDriveFolderId: true,
       googleDriveTokens: true,
       project: { select: { teamId: true } },
@@ -91,13 +96,45 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Get the items to process
+  // Return immediately so the client can show progress
+  // Processing continues in the background
+  const batchId = batch.id
+  const driveFolderId = subAccount.googleDriveFolderId
+
+  // Process items in the background (non-blocking)
+  processItemsInBackground({
+    batchId, itemIds, provider, apiKey, model,
+    businessName: subAccount.name,
+    businessPhone: subAccount.phone,
+    businessUrl: subAccount.url,
+    driveFolderId, subAccountId,
+    wordCount, templatePrompt, exampleContent, customPromptInstruction,
+  }).catch(console.error)
+
+  return NextResponse.json({ data: { batchId } })
+}
+
+async function processItemsInBackground(opts: {
+  batchId: string
+  itemIds: string[]
+  provider: LLMProvider
+  apiKey: string
+  model?: string
+  businessName: string
+  businessPhone: string | null
+  businessUrl: string | null
+  driveFolderId: string | null
+  subAccountId: string
+  wordCount?: number
+  templatePrompt?: string
+  exampleContent?: string
+  customPromptInstruction?: string
+}) {
   const items = await prisma.contentItem.findMany({
-    where: { id: { in: itemIds } },
+    where: { id: { in: opts.itemIds } },
   })
 
-  // Process each item directly
-  const adapter = await createAdapter(provider, apiKey, model)
+  const adapter = await createAdapter(opts.provider, opts.apiKey, opts.model)
 
   for (const item of items) {
     await prisma.contentItem.update({
@@ -114,35 +151,34 @@ export async function POST(req: NextRequest) {
         geolocation: item.geolocation || undefined,
         targetKeywords: item.targetKeywords || undefined,
         includeCta: item.includeCta,
-        businessName: subAccount.name,
-        wordCount,
-        templatePrompt,
-        exampleContent,
-        customPromptInstruction,
+        businessName: opts.businessName,
+        businessPhone: opts.businessPhone || undefined,
+        contactPageUrl: opts.businessUrl ? `${opts.businessUrl.replace(/\/$/, "")}/contact` : undefined,
+        wordCount: opts.wordCount,
+        templatePrompt: opts.templatePrompt,
+        exampleContent: opts.exampleContent,
+        customPromptInstruction: opts.customPromptInstruction,
       })
 
       const raw = await adapter.generate({ prompt })
-      // Strip markdown code fences (```html ... ```) if present
       const result = {
         ...raw,
         content: raw.content.replace(/^```[a-z]*\n?/i, "").replace(/\n?```\s*$/i, "").trim(),
       }
 
-      // Guard: if content is empty, mark as FAILED
       if (!result.content) {
         throw new Error("LLM returned empty content. Try a different model.")
       }
 
-      // Upload to Google Drive if connected
       let googleDocId: string | undefined
       let googleDocUrl: string | undefined
       try {
-        if (subAccount.googleDriveFolderId) {
+        if (opts.driveFolderId) {
           const doc = await createGoogleDoc(
-            subAccountId,
+            opts.subAccountId,
             item.title,
             result.content,
-            subAccount.googleDriveFolderId
+            opts.driveFolderId
           )
           googleDocId = doc.docId
           googleDocUrl = doc.docUrl
@@ -162,7 +198,7 @@ export async function POST(req: NextRequest) {
       })
 
       await prisma.contentBatch.update({
-        where: { id: batch.id },
+        where: { id: opts.batchId },
         data: { completedItems: { increment: 1 } },
       })
     } catch (err) {
@@ -176,7 +212,7 @@ export async function POST(req: NextRequest) {
         },
       })
       await prisma.contentBatch.update({
-        where: { id: batch.id },
+        where: { id: opts.batchId },
         data: { failedItems: { increment: 1 } },
       })
     }
@@ -184,17 +220,15 @@ export async function POST(req: NextRequest) {
 
   // Mark batch as completed
   const finalBatch = await prisma.contentBatch.findUnique({
-    where: { id: batch.id },
+    where: { id: opts.batchId },
     select: { failedItems: true, totalItems: true },
   })
   const allFailed = finalBatch && finalBatch.failedItems === finalBatch.totalItems
   await prisma.contentBatch.update({
-    where: { id: batch.id },
+    where: { id: opts.batchId },
     data: {
       status: allFailed ? "FAILED" : "COMPLETED",
       completedAt: new Date(),
     },
   })
-
-  return NextResponse.json({ data: { batchId: batch.id } })
 }

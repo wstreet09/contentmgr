@@ -14,6 +14,73 @@ const VIDEO_SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
 ]
 
+// Build a styled HTML document for Google Docs conversion.
+// Google Drive's HTML-to-Doc converter respects inline CSS, so we add
+// styles that match the Tailwind prose-sm spacing used in the viewer.
+function buildStyledHtml(title: string, content: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+  }
+  h1 {
+    font-size: 22pt;
+    margin-top: 0pt;
+    margin-bottom: 12pt;
+    line-height: 1.3;
+  }
+  h2 {
+    font-size: 16pt;
+    margin-top: 20pt;
+    margin-bottom: 8pt;
+    line-height: 1.3;
+  }
+  h3 {
+    font-size: 13pt;
+    margin-top: 16pt;
+    margin-bottom: 6pt;
+    line-height: 1.3;
+  }
+  p {
+    margin-top: 0pt;
+    margin-bottom: 10pt;
+    line-height: 1.6;
+  }
+  ul, ol {
+    margin-top: 8pt;
+    margin-bottom: 12pt;
+    padding-left: 24pt;
+  }
+  li {
+    margin-top: 0pt;
+    margin-bottom: 6pt;
+    line-height: 1.6;
+  }
+  hr {
+    margin-top: 16pt;
+    margin-bottom: 16pt;
+    border: none;
+    border-top: 1pt solid #cccccc;
+  }
+  strong {
+    font-weight: bold;
+  }
+  em {
+    font-style: italic;
+  }
+</style>
+</head>
+<body>${content}</body>
+</html>`
+}
+
 function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -100,8 +167,7 @@ export async function createGoogleDoc(
   const authClient = await getAuthenticatedClient(subAccountId)
   const drive = google.drive({ version: "v3", auth: authClient })
 
-  // Wrap content in a basic HTML document so Drive converts formatting
-  const htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${content}</body></html>`
+  const htmlBody = buildStyledHtml(title, content)
 
   const fileMetadata: Record<string, unknown> = {
     name: title,
@@ -112,7 +178,6 @@ export async function createGoogleDoc(
     fileMetadata.parents = [folderId]
   }
 
-  // Upload HTML and let Drive convert it to a Google Doc
   const bufferStream = new PassThrough()
   bufferStream.end(Buffer.from(htmlBody, "utf-8"))
 
@@ -210,7 +275,7 @@ export async function createVideoGoogleDoc(
   const authClient = await getVideoAuthenticatedClient(videoProjectId)
   const drive = google.drive({ version: "v3", auth: authClient })
 
-  const htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${content}</body></html>`
+  const htmlBody = buildStyledHtml(title, content)
 
   const fileMetadata: Record<string, unknown> = {
     name: title,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { waitUntil } from "@vercel/functions"
 
 // Allow up to 60s for background processing on Vercel
 export const maxDuration = 60
@@ -102,15 +103,15 @@ export async function POST(req: NextRequest) {
   const batchId = batch.id
   const driveFolderId = subAccount.googleDriveFolderId
 
-  // Process items in the background (non-blocking)
-  processItemsInBackground({
+  // Process items in the background — waitUntil keeps Vercel function alive after response
+  waitUntil(processItemsInBackground({
     batchId, itemIds, provider, apiKey, model,
     businessName: subAccount.name,
     businessPhone: subAccount.phone,
     contactUrl: subAccount.contactUrl,
     driveFolderId, subAccountId,
     wordCount, templatePrompt, exampleContent, customPromptInstruction,
-  }).catch(console.error)
+  }).catch(console.error))
 
   return NextResponse.json({ data: { batchId } })
 }

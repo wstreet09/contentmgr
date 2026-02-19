@@ -25,10 +25,22 @@ export function ContentViewerDialog({
 }: ContentViewerDialogProps) {
   const { toast } = useToast()
 
-  function handleCopy() {
-    const tmp = document.createElement("div")
-    tmp.innerHTML = content
-    navigator.clipboard.writeText(tmp.textContent || "")
+  async function handleCopy() {
+    try {
+      const blob = new Blob([content], { type: "text/html" })
+      const textBlob = new Blob([new DOMParser().parseFromString(content, "text/html").body.textContent || ""], { type: "text/plain" })
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": blob,
+          "text/plain": textBlob,
+        }),
+      ])
+    } catch {
+      // Fallback for browsers that don't support clipboard.write
+      const tmp = document.createElement("div")
+      tmp.innerHTML = content
+      navigator.clipboard.writeText(tmp.textContent || "")
+    }
     toast({ title: "Copied", description: "Content copied to clipboard." })
   }
 

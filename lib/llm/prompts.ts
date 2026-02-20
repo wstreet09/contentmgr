@@ -134,6 +134,7 @@ export function buildContentPrompt(input: ContentPromptInput): string {
   parts.push("")
   parts.push("External Linking:")
   parts.push("- Include no more than 2 outbound links to authoritative, reputable external sources (e.g. government sites, industry associations, well-known publications) that support claims or add value")
+  parts.push("- ONLY link to well-known, stable root-level or top-level pages (e.g. cdc.gov/topic, nhtsa.gov/topic). NEVER link to specific legislation URLs, bill trackers, deep .gov subpages, or niche legal aid pages — these frequently go offline or change URLs")
   parts.push("- Use proper <a> tags with descriptive anchor text for all external links")
 
   parts.push("- After all article content (including the CTA if present), add a horizontal rule (<hr>) followed by the meta description (150-160 characters) that leads with the primary keyword. Format it as: <hr><p><strong>Meta Description:</strong> [description text]</p>")

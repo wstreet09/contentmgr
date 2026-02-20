@@ -28,6 +28,8 @@ function extractEntriesFromSitemap(xml: string): SitemapEntry[] {
 
   while ((match = locRegex.exec(xml)) !== null) {
     const url = match[1].trim()
+    // Skip XML sitemap URLs — only want actual page URLs
+    if (url.endsWith(".xml")) continue
     if (!isBlogLikePath(url)) continue
 
     try {
@@ -42,6 +44,25 @@ function extractEntriesFromSitemap(xml: string): SitemapEntry[] {
   }
 
   return entries
+}
+
+/** Check if XML is a sitemap index (contains <sitemapindex> or <sitemap> tags) */
+function isSitemapIndex(xml: string): boolean {
+  return xml.includes("<sitemapindex") || (xml.includes("<sitemap>") && !xml.includes("<urlset"))
+}
+
+/** Extract sub-sitemap URLs from a sitemap index */
+function extractSubSitemapUrls(xml: string): string[] {
+  const urls: string[] = []
+  const locRegex = /<loc>(.*?)<\/loc>/g
+  let match
+  while ((match = locRegex.exec(xml)) !== null) {
+    const url = match[1].trim()
+    if (url.endsWith(".xml")) {
+      urls.push(url)
+    }
+  }
+  return urls
 }
 
 function extractEntriesFromHtml(html: string, baseUrl: string): SitemapEntry[] {
@@ -67,22 +88,51 @@ function extractEntriesFromHtml(html: string, baseUrl: string): SitemapEntry[] {
   return entries
 }
 
+async function fetchWithTimeout(url: string, signal: AbortSignal): Promise<Response> {
+  return fetch(url, {
+    signal,
+    headers: { "User-Agent": "ContentGenerator/1.0" },
+  })
+}
+
 export async function scrapeSitemap(urlInput: string): Promise<SitemapEntry[]> {
   const base = urlInput.replace(/\/+$/, "")
   const isDirectSitemap = base.endsWith(".xml")
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10_000)
+  const timeout = setTimeout(() => controller.abort(), 15_000)
 
   try {
-    // Fetch sitemap — use URL directly if it ends in .xml, otherwise append /sitemap.xml
     const sitemapUrl = isDirectSitemap ? base : `${base}/sitemap.xml`
-    const sitemapRes = await fetch(sitemapUrl, {
-      signal: controller.signal,
-      headers: { "User-Agent": "ContentGenerator/1.0" },
-    })
+    const sitemapRes = await fetchWithTimeout(sitemapUrl, controller.signal)
 
     if (sitemapRes.ok) {
       const xml = await sitemapRes.text()
+
+      // If this is a sitemap index, fetch the sub-sitemaps
+      if (isSitemapIndex(xml)) {
+        const subUrls = extractSubSitemapUrls(xml)
+        const allEntries: SitemapEntry[] = []
+
+        // Fetch up to 5 sub-sitemaps to avoid timeout
+        for (const subUrl of subUrls.slice(0, 5)) {
+          try {
+            const subRes = await fetchWithTimeout(subUrl, controller.signal)
+            if (subRes.ok) {
+              const subXml = await subRes.text()
+              allEntries.push(...extractEntriesFromSitemap(subXml))
+            }
+          } catch {
+            // Skip failed sub-sitemaps
+          }
+          if (allEntries.length >= 100) break
+        }
+
+        if (allEntries.length > 0) {
+          return allEntries.slice(0, 100)
+        }
+      }
+
+      // Regular sitemap (not an index)
       const entries = extractEntriesFromSitemap(xml)
       if (entries.length > 0) {
         return entries.slice(0, 100)
@@ -90,10 +140,7 @@ export async function scrapeSitemap(urlInput: string): Promise<SitemapEntry[]> {
     }
 
     // Fallback: scrape /blog/ page
-    const blogRes = await fetch(`${base}/blog`, {
-      signal: controller.signal,
-      headers: { "User-Agent": "ContentGenerator/1.0" },
-    })
+    const blogRes = await fetchWithTimeout(`${base}/blog`, controller.signal)
 
     if (blogRes.ok) {
       const html = await blogRes.text()

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { MoreHorizontal, Pencil, Trash2, MapPin, Star } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, MapPin, Star, Copy } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -39,6 +39,7 @@ interface SubAccountCardProps {
     phone: string | null
     email: string | null
     url: string | null
+    contactUrl: string | null
     companyType: string | null
     isPrimary: boolean
     googleDriveFolderId: string | null
@@ -55,6 +56,33 @@ export function SubAccountCard({ subAccount, onUpdate }: SubAccountCardProps) {
   const locationParts = [subAccount.city, subAccount.state]
     .filter(Boolean)
     .join(", ")
+
+  async function handleDuplicate() {
+    try {
+      const res = await fetch("/api/sub-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: subAccount.projectId,
+          name: `${subAccount.name} (Copy)`,
+          address: subAccount.address,
+          city: subAccount.city,
+          state: subAccount.state,
+          zip: subAccount.zip,
+          phone: subAccount.phone,
+          email: subAccount.email,
+          url: subAccount.url,
+          contactUrl: subAccount.contactUrl,
+          companyType: subAccount.companyType,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to duplicate")
+      toast({ title: "Location duplicated" })
+      onUpdate()
+    } catch {
+      toast({ title: "Failed to duplicate", variant: "destructive" })
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true)
@@ -107,6 +135,10 @@ export function SubAccountCard({ subAccount, onUpdate }: SubAccountCardProps) {
                     </DropdownMenuItem>
                   }
                 />
+                <DropdownMenuItem onSelect={handleDuplicate}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Duplicate
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive"
                   onSelect={() => setDeleteOpen(true)}

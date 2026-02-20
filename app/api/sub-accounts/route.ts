@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { projectId, name, address, city, state, zip, phone, email, url, companyType } = body
+  const { projectId, name, address, city, state, zip, phone, email, url, contactUrl, companyType } = body
 
   if (!projectId || !name?.trim()) {
     return NextResponse.json(
@@ -89,6 +89,7 @@ export async function POST(req: Request) {
       phone: phone?.trim() || null,
       email: email?.trim() || null,
       url: url?.trim() || null,
+      contactUrl: contactUrl?.trim() || null,
       companyType: companyType?.trim() || null,
       isPrimary: existingCount === 0,
       projectId,

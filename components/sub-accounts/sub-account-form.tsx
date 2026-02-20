@@ -24,6 +24,7 @@ interface SubAccountData {
   phone: string | null
   email: string | null
   url: string | null
+  contactUrl: string | null
   companyType: string | null
 }
 
@@ -60,6 +61,7 @@ export function SubAccountForm({
       phone: formData.get("phone") as string,
       email: formData.get("email") as string,
       url: formData.get("url") as string,
+      contactUrl: formData.get("contactUrl") as string,
       companyType: formData.get("companyType") as string,
     }
 
@@ -188,15 +190,27 @@ export function SubAccountForm({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="url">Website URL</Label>
-            <Input
-              id="url"
-              name="url"
-              type="url"
-              placeholder="https://example.com"
-              defaultValue={subAccount?.url || ""}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="url">Website URL</Label>
+              <Input
+                id="url"
+                name="url"
+                type="url"
+                placeholder="https://example.com"
+                defaultValue={subAccount?.url || ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactUrl">Contact Us Link</Label>
+              <Input
+                id="contactUrl"
+                name="contactUrl"
+                type="url"
+                placeholder="https://example.com/contact"
+                defaultValue={subAccount?.contactUrl || ""}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">

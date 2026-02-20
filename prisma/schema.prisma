@@ -94,9 +94,10 @@ model User {
   image            String?
   company          String?
   isSuperAdmin     Boolean          @default(false)
-  encryptedApiKeys String?          @db.Text
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  encryptedApiKeys    String?          @db.Text
+  lastSeenChangelogAt DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   accounts            Account[]
   sessions            Session[]

@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { ChangelogBell } from "@/components/layout/changelog-bell"
 import {
   Sheet,
   SheetContent,
@@ -27,6 +28,7 @@ export function Header() {
 
       <div className="flex-1" />
 
+      <ChangelogBell />
       <ThemeToggle />
     </header>
   )

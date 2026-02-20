@@ -28,6 +28,7 @@ interface User {
   email: string
   company: string | null
   isSuperAdmin: boolean
+  contentCount: number
   createdAt: string
 }
 
@@ -128,6 +129,7 @@ export function AdminUserTable() {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Company</TableHead>
+            <TableHead>Content</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Role</TableHead>
             <TableHead className="w-24" />
@@ -139,6 +141,7 @@ export function AdminUserTable() {
               <TableCell>{user.name || "—"}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>{user.company || "—"}</TableCell>
+              <TableCell>{user.contentCount}</TableCell>
               <TableCell>
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>

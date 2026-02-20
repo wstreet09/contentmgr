@@ -2,17 +2,25 @@
 
 import { useContentStore } from "@/lib/store/content-store"
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Copy, Upload, Download, Sparkles, LayoutTemplate, Lightbulb, Maximize2 } from "lucide-react"
+import { Plus, Trash2, Copy, Upload, Download, Sparkles, Lightbulb, Maximize2, Filter } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface ContentToolbarProps {
   onImportCsv?: () => void
-  onTemplates?: () => void
   onSuggestTopics?: () => void
   onGenerate?: () => void
   onFullScreen?: () => void
+  statusFilter: string
+  onStatusFilterChange: (value: string) => void
 }
 
-export function ContentToolbar({ onImportCsv, onTemplates, onSuggestTopics, onGenerate, onFullScreen }: ContentToolbarProps) {
+export function ContentToolbar({ onImportCsv, onSuggestTopics, onGenerate, onFullScreen, statusFilter, onStatusFilterChange }: ContentToolbarProps) {
   const { rows, selectedIds, addRow, deleteRows, duplicateRows } = useContentStore()
 
   const hasSelection = selectedIds.size > 0
@@ -45,10 +53,6 @@ export function ContentToolbar({ onImportCsv, onTemplates, onSuggestTopics, onGe
       <Button variant="outline" size="sm" onClick={onImportCsv}>
         <Upload className="mr-1 h-4 w-4" />
         Import CSV
-      </Button>
-      <Button variant="outline" size="sm" onClick={onTemplates}>
-        <LayoutTemplate className="mr-1 h-4 w-4" />
-        Templates
       </Button>
       <Button variant="outline" size="sm" onClick={onSuggestTopics}>
         <Lightbulb className="mr-1 h-4 w-4" />
@@ -83,6 +87,19 @@ export function ContentToolbar({ onImportCsv, onTemplates, onSuggestTopics, onGe
         <Download className="mr-1 h-4 w-4" />
         Export
       </Button>
+      <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+        <SelectTrigger className="h-8 w-[140px]">
+          <Filter className="mr-1 h-3.5 w-3.5" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Status</SelectItem>
+          <SelectItem value="COMPLETED">Completed</SelectItem>
+          <SelectItem value="DRAFT">Draft</SelectItem>
+          <SelectItem value="GENERATING">Generating</SelectItem>
+          <SelectItem value="FAILED">Failed</SelectItem>
+        </SelectContent>
+      </Select>
       <div className="flex-1" />
       <Button variant="outline" size="sm" onClick={onFullScreen} title="Full Screen">
         <Maximize2 className="h-4 w-4" />

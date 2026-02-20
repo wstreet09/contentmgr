@@ -5,7 +5,6 @@ import { useContentStore, ContentRow } from "@/lib/store/content-store"
 import { ContentTable } from "./content-table"
 import { ContentToolbar } from "./content-toolbar"
 import { CsvImportDialog } from "./csv-import-dialog"
-import { TemplatePicker } from "./template-picker"
 import { BatchProgress } from "./batch-progress"
 import { GenerateDialog } from "./generate-dialog"
 import { TopicSuggestDialog } from "./topic-suggest-dialog"
@@ -21,11 +20,11 @@ export function ContentPageClient({ subAccountId }: ContentPageClientProps) {
   const { toast } = useToast()
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const [csvOpen, setCsvOpen] = useState(false)
-  const [templatesOpen, setTemplatesOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [suggestTopicsOpen, setSuggestTopicsOpen] = useState(false)
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const [isFullScreen, setIsFullScreen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState("ALL")
 
   // Load content items on mount
   useEffect(() => {
@@ -92,10 +91,11 @@ export function ContentPageClient({ subAccountId }: ContentPageClientProps) {
     <div className="space-y-4">
       <ContentToolbar
         onImportCsv={() => setCsvOpen(true)}
-        onTemplates={() => setTemplatesOpen(true)}
         onSuggestTopics={() => setSuggestTopicsOpen(true)}
         onGenerate={() => setGenerateOpen(true)}
         onFullScreen={() => setIsFullScreen(!isFullScreen)}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
       />
       {activeBatchId && (
         <BatchProgress
@@ -122,7 +122,7 @@ export function ContentPageClient({ subAccountId }: ContentPageClientProps) {
           }}
         />
       )}
-      <ContentTable />
+      <ContentTable statusFilter={statusFilter} />
       {isDirty && (
         <p className="text-xs text-muted-foreground">Unsaved changes...</p>
       )}
@@ -141,7 +141,6 @@ export function ContentPageClient({ subAccountId }: ContentPageClientProps) {
         tableContent
       )}
       <CsvImportDialog open={csvOpen} onOpenChange={setCsvOpen} />
-      <TemplatePicker open={templatesOpen} onOpenChange={setTemplatesOpen} />
       <GenerateDialog
         open={generateOpen}
         onOpenChange={setGenerateOpen}

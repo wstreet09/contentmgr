@@ -18,6 +18,7 @@ interface SubAccount {
   phone: string | null
   email: string | null
   url: string | null
+  contactUrl: string | null
   companyType: string | null
   isPrimary: boolean
   googleDriveFolderId: string | null

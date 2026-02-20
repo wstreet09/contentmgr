@@ -9,6 +9,7 @@ import { decrypt } from "@/lib/crypto"
 import { createAdapter, LLMProvider, LLMAdapter } from "@/lib/llm/adapter"
 import { buildContentPrompt } from "@/lib/llm/prompts"
 import { createGoogleDoc } from "@/lib/google-drive"
+import { scrapeSitemap } from "@/lib/scrape-sitemap"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
       phone: true,
       url: true,
       contactUrl: true,
+      internalLinks: true,
       googleDriveFolderId: true,
       googleDriveTokens: true,
       project: { select: { teamId: true } },
@@ -78,6 +80,34 @@ export async function POST(req: NextRequest) {
   if (!membership) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
+
+  // Gather internal links: scraped from sitemap + manual
+  let allInternalLinks: { url: string; title: string }[] = []
+  if (subAccount.url) {
+    try {
+      const scraped = await scrapeSitemap(subAccount.url)
+      allInternalLinks = scraped.map((e) => ({ url: e.url, title: e.title }))
+    } catch {
+      // Non-fatal: continue without scraped links
+    }
+  }
+  if (subAccount.internalLinks) {
+    try {
+      const manual = JSON.parse(subAccount.internalLinks) as { url: string; title: string }[]
+      allInternalLinks = [...allInternalLinks, ...manual]
+    } catch {
+      // ignore invalid JSON
+    }
+  }
+  // Filter out category/tag/archive pages, deduplicate by URL, and cap at 50
+  const categoryPatterns = ["/category/", "/tag/", "/archive/", "/author/", "/page/"]
+  const seen = new Set<string>()
+  allInternalLinks = allInternalLinks.filter((link) => {
+    if (seen.has(link.url)) return false
+    if (categoryPatterns.some((p) => link.url.includes(p))) return false
+    seen.add(link.url)
+    return true
+  }).slice(0, 50)
 
   // Create batch
   const batch = await prisma.contentBatch.create({
@@ -111,6 +141,7 @@ export async function POST(req: NextRequest) {
     contactUrl: subAccount.contactUrl,
     driveFolderId, subAccountId,
     wordCount, templatePrompt, exampleContent, customPromptInstruction,
+    internalLinks: allInternalLinks,
   }).catch(console.error))
 
   return NextResponse.json({ data: { batchId } })
@@ -131,6 +162,7 @@ async function processItemsInBackground(opts: {
   templatePrompt?: string
   exampleContent?: string
   customPromptInstruction?: string
+  internalLinks: { url: string; title: string }[]
 }) {
   const items = await prisma.contentItem.findMany({
     where: { id: { in: opts.itemIds } },
@@ -163,7 +195,7 @@ async function processItemsInBackground(opts: {
 async function processOneItem(
   item: { id: string; title: string; contentType: string; serviceArea: string | null; targetAudience: string | null; geolocation: string | null; targetKeywords: string | null; includeCta: boolean },
   adapter: LLMAdapter,
-  opts: { batchId: string; businessName: string; businessPhone: string | null; contactUrl: string | null; driveFolderId: string | null; subAccountId: string; wordCount?: number; templatePrompt?: string; exampleContent?: string; customPromptInstruction?: string }
+  opts: { batchId: string; businessName: string; businessPhone: string | null; contactUrl: string | null; driveFolderId: string | null; subAccountId: string; wordCount?: number; templatePrompt?: string; exampleContent?: string; customPromptInstruction?: string; internalLinks: { url: string; title: string }[] }
 ) {
   await prisma.contentItem.update({
     where: { id: item.id },
@@ -186,6 +218,7 @@ async function processOneItem(
       templatePrompt: opts.templatePrompt,
       exampleContent: opts.exampleContent,
       customPromptInstruction: opts.customPromptInstruction,
+      internalLinks: opts.internalLinks,
     })
 
     const raw = await adapter.generate({ prompt })

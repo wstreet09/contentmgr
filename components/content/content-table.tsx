@@ -13,11 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export function ContentTable() {
+interface ContentTableProps {
+  statusFilter?: string
+}
+
+export function ContentTable({ statusFilter = "ALL" }: ContentTableProps) {
   const { rows, selectedIds, selectAll, clearSelection } = useContentStore()
   const [viewingRow, setViewingRow] = useState<ContentRow | null>(null)
 
-  const allSelected = rows.length > 0 && selectedIds.size === rows.length
+  const filteredRows = statusFilter === "ALL" ? rows : rows.filter((r) => r.status === statusFilter)
+  const allSelected = filteredRows.length > 0 && filteredRows.every((r) => selectedIds.has(r.id))
 
   function handleSelectAll() {
     if (allSelected) {
@@ -32,6 +37,16 @@ export function ContentTable() {
       <div className="rounded-md border p-12 text-center">
         <p className="text-muted-foreground">
           No content items yet. Add a row or import a CSV to get started.
+        </p>
+      </div>
+    )
+  }
+
+  if (filteredRows.length === 0) {
+    return (
+      <div className="rounded-md border p-12 text-center">
+        <p className="text-muted-foreground">
+          No items match the current filter.
         </p>
       </div>
     )
@@ -61,7 +76,7 @@ export function ContentTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <ContentRowComponent
                 key={row.id}
                 row={row}

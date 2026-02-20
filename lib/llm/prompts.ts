@@ -13,6 +13,7 @@ interface ContentPromptInput {
   templatePrompt?: string
   exampleContent?: string
   customPromptInstruction?: string
+  internalLinks?: { url: string; title: string }[]
 }
 
 export const PROMPT_TEMPLATES: { value: string; label: string; instruction: string }[] = [
@@ -114,6 +115,26 @@ export function buildContentPrompt(input: ContentPromptInput): string {
     }
     parts.push(ctaInstruction)
   }
+
+  parts.push("")
+  parts.push("Linking Rules (applies to ALL links in the article):")
+  parts.push("- NEVER link to category pages, tag pages, archive/index pages, or author pages — only link to actual blog posts, service pages, or specific content pages")
+  parts.push("- The contact page link and phone number in the CTA section do NOT count toward internal/external link limits")
+
+  if (input.internalLinks && input.internalLinks.length > 0) {
+    parts.push("")
+    parts.push("Internal Linking:")
+    parts.push("- Naturally incorporate no more than 2 relevant internal links from the following list into the article body using descriptive anchor text and proper <a> tags:")
+    for (const link of input.internalLinks) {
+      parts.push(`  - ${link.title}: ${link.url}`)
+    }
+    parts.push("- Only link to pages that are contextually relevant to the content")
+  }
+
+  parts.push("")
+  parts.push("External Linking:")
+  parts.push("- Include no more than 2 outbound links to authoritative, reputable external sources (e.g. government sites, industry associations, well-known publications) that support claims or add value")
+  parts.push("- Use proper <a> tags with descriptive anchor text for all external links")
 
   parts.push("- After all article content (including the CTA if present), add a horizontal rule (<hr>) followed by the meta description (150-160 characters) that leads with the primary keyword. Format it as: <hr><p><strong>Meta Description:</strong> [description text]</p>")
 

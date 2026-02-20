@@ -30,11 +30,67 @@ export async function GET() {
       company: true,
       isSuperAdmin: true,
       createdAt: true,
+      memberships: {
+        select: {
+          team: {
+            select: {
+              projects: {
+                select: {
+                  subAccounts: {
+                    select: { id: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   })
 
-  return NextResponse.json({ data: users })
+  // Collect all sub-account IDs across all users
+  const allSaIds = new Set<string>()
+  for (const user of users) {
+    for (const m of user.memberships) {
+      for (const p of m.team.projects) {
+        for (const sa of p.subAccounts) {
+          allSaIds.add(sa.id)
+        }
+      }
+    }
+  }
+
+  // Single query: count completed content items grouped by subAccountId
+  const counts = await prisma.contentItem.groupBy({
+    by: ["subAccountId"],
+    where: {
+      status: "COMPLETED",
+      subAccountId: { in: Array.from(allSaIds) },
+    },
+    _count: true,
+  })
+
+  const saCountMap = new Map<string, number>()
+  for (const c of counts) {
+    if (c.subAccountId) saCountMap.set(c.subAccountId, c._count)
+  }
+
+  const data = users.map((user) => {
+    let contentCount = 0
+    for (const m of user.memberships) {
+      for (const p of m.team.projects) {
+        for (const sa of p.subAccounts) {
+          contentCount += saCountMap.get(sa.id) || 0
+        }
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { memberships, ...rest } = user
+    return { ...rest, contentCount }
+  })
+
+  return NextResponse.json({ data })
 }
 
 export async function PUT(req: Request) {

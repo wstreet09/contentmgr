@@ -164,6 +164,7 @@ model SubAccount {
   url                 String?
   contactUrl          String?
   companyType         String?
+  internalLinks       String?  @db.Text
   isPrimary           Boolean  @default(false)
   googleDriveFolderId String?
   googleDriveTokens   String?  @db.Text
